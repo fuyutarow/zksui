@@ -1,4 +1,16 @@
 [tasks."prove"]
+script = '''
+cd prover_rs
+cargo run
+'''
+
+[tasks."verify"]
+script = '''
+cd scripts
+bun src/do_just.ts
+'''
+
+[tasks."_prove"]
 dependencies = [
   "build:circuit",
   "build:setup",
@@ -36,7 +48,7 @@ snarkjs zkey contribute circuit_0000.zkey circuit_0001.zkey --name="First contri
 snarkjs zkey export verificationkey circuit_0001.zkey verification_key.json
 '''
 
-[tasks."build:proof"]
+[tasks."build:_proof"]
 script = '''
 cd prover
 # ウィットネスの計算

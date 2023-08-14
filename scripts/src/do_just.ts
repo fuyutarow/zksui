@@ -42,7 +42,7 @@ const setupTransactionBlock = (vk_bytes, public_inputs_bytes, proof_points_bytes
 };
 
 const main = async () => {
-  const localData = loadLocalJSON('../utils/output_data.json');
+  const localData = loadLocalJSON('../prover_rs/output_data.json');
   if (!localData) return;
 
   const { vk_bytes, public_inputs_bytes, proof_points_bytes } = localData;
