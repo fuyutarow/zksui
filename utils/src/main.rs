@@ -1,12 +1,16 @@
 pub use ark_bn254::{Bn254 as Curve, Fr};
 use ark_circom::{CircomBuilder, CircomConfig};
 use ark_crypto_primitives::snark::SNARK;
-use ark_groth16::Groth16;
-use ark_serialize::CanonicalSerialize;
+use ark_ec::bn::G2Prepared;
+use ark_groth16::Proof;
+use ark_groth16::{Groth16, PreparedVerifyingKey as ArkPreparedVerifyingKey};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::rand::thread_rng;
 use ark_std::UniformRand;
+use fastcrypto::error::FastCryptoError;
 use fastcrypto_zkp::bn254::api::{prepare_pvk_bytes, verify_groth16_in_bytes};
-use fastcrypto_zkp::bn254::verifier::process_vk_special;
+use fastcrypto_zkp::bn254::api::{Bn254Fr, SCALAR_SIZE};
+use fastcrypto_zkp::bn254::verifier::{process_vk_special, PreparedVerifyingKey};
 use fastcrypto_zkp::bn254::VerifyingKey;
 use fastcrypto_zkp::dummy_circuits::{DummyCircuit, Fibonacci};
 use num_bigint::BigInt;
@@ -14,6 +18,35 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
+
+pub fn verify_groth16(
+    pvk: &PreparedVerifyingKey,
+    proof_public_inputs_as_bytes: &[u8],
+    proof_points_as_bytes: &[u8],
+) -> Result<bool, FastCryptoError> {
+    dbg!("#114");
+    let proof = Proof::<Curve>::deserialize_compressed(proof_points_as_bytes)
+        .map_err(|_| FastCryptoError::InvalidInput)?;
+    dbg!("#115");
+    let mut public_inputs = Vec::new();
+    for chunk in proof_public_inputs_as_bytes.chunks(SCALAR_SIZE) {
+        dbg!("chunk", chunk.len(), &chunk);
+        public_inputs
+            .push(Fr::deserialize_compressed(chunk).map_err(|_| FastCryptoError::InvalidInput)?);
+    }
+    dbg!("#116");
+    let ark_pkv = {
+        let mut ark_pvk = ArkPreparedVerifyingKey::default();
+        ark_pvk.vk.gamma_abc_g1 = pvk.vk_gamma_abc_g1.clone();
+        ark_pvk.alpha_g1_beta_g2 = pvk.alpha_g1_beta_g2;
+        ark_pvk.gamma_g2_neg_pc = G2Prepared::from(&pvk.gamma_g2_neg_pc);
+        ark_pvk.delta_g2_neg_pc = G2Prepared::from(&pvk.delta_g2_neg_pc);
+        ark_pvk
+    };
+
+    Groth16::<Curve>::verify_with_processed_vk(&ark_pkv, &public_inputs, &proof)
+        .map_err(|e| FastCryptoError::GeneralError(e.to_string()))
+}
 
 type CircomInput = HashMap<String, Vec<num_bigint::BigInt>>;
 
@@ -44,8 +77,10 @@ fn verify_proof_with_r1cs(inputs: CircomInput, wasm_path: &str, r1cs_path: &str)
     let pvk = Groth16::<Curve>::process_vk(&params.vk).unwrap();
 
     let verified = Groth16::<Curve>::verify_proof(&pvk, &proof, &inputs).unwrap();
-    dbg!(&verified);
+    dbg!("verified", &verified);
     assert!(verified);
+
+    // verify_groth16()
 
     let vk_bytes = {
         let mut vk_bytes = vec![];
@@ -53,11 +88,19 @@ fn verify_proof_with_r1cs(inputs: CircomInput, wasm_path: &str, r1cs_path: &str)
         vk_bytes
     };
 
+    let delta_bytes = {
+        let mut bytes = vec![];
+        params.delta_g1.serialize_compressed(&mut bytes).unwrap();
+        bytes
+    };
+
     let public_inputs_bytes = {
         let mut public_inputs_bytes = Vec::new();
-        inputs
-            .serialize_compressed(&mut public_inputs_bytes)
-            .unwrap();
+        for input in inputs.iter() {
+            input
+                .serialize_compressed(&mut public_inputs_bytes)
+                .unwrap();
+        }
         public_inputs_bytes
     };
 
@@ -86,9 +129,13 @@ fn verify_proof_with_r1cs(inputs: CircomInput, wasm_path: &str, r1cs_path: &str)
     println!("public_inputs_bytes: {}", hex::encode(&public_inputs_bytes));
     println!("proof_points_bytes: {}", hex::encode(&proof_points_bytes));
 
-    println!("{:?}", vk_bytes);
-    println!("{:?}", public_inputs_bytes);
-    println!("{:?}", proof_points_bytes);
+    let pvk = process_vk_special(&params.vk.into());
+    let result = verify_groth16(&pvk, &public_inputs_bytes, &proof_points_bytes);
+    dbg!("result", &result);
+
+    println!("{:?}", &vk_bytes);
+    println!("{:?}", &public_inputs_bytes);
+    println!("{:?}", &proof_points_bytes);
 
     let output_data = json!({
         "vk_bytes": &vk_bytes,
