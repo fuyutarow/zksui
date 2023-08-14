@@ -16,14 +16,6 @@ cd scripts
 bun src/verify.ts
 '''
 
-[tasks."prove_with_snarkjs"]
-dependencies = [
-  "build:circuit",
-  "build:setup",
-  "build:proof",
-  "build:values",
-]
-
 [tasks."build:circuit"]
 script = '''
 cd circuit
@@ -36,7 +28,15 @@ cd prover
 cargo run
 '''
 
-[tasks."build:setup:snarkjs"]
+[tasks."snarkjs:prove"]
+dependencies = [
+  "build:circuit",
+  "snarkjs:setup",
+  "snarkjs:proof",
+  "snarkjs:values",
+]
+
+[tasks."snarkjs:setup"]
 script = '''
 # セットアップの初期フェーズを開始し、新しいPowers of Tauファイルを生成します。
 cd trusted_setup
@@ -60,9 +60,9 @@ snarkjs zkey contribute circuit_0000.zkey circuit_0001.zkey --name="First contri
 snarkjs zkey export verificationkey circuit_0001.zkey verification_key.json
 '''
 
-[tasks."build:proof:snarkjs"]
+[tasks."snarkjs:proof"]
 script = '''
-cd prover
+cd prover-snarkjs
 # ウィットネスの計算
 snarkjs wtns calculate ../circuit/main_js/main.wasm input.json witness.wtns
 
