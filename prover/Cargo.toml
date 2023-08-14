@@ -24,6 +24,7 @@ fastcrypto = "0.1.5"
 fastcrypto-zkp = "0.1.1"
 hex = "0.4.3"
 num-bigint = {version = "0.4", default-features = false, features = ["rand"]}
+num-traits = "0.2.15"
 once_cell = "1.16"
 poseidon-ark = {git = "https://github.com/arnaucube/poseidon-ark.git", rev = "bf96de3b946e8b343c6b65412bae92f8d32251ad"}
 rand = "0.8.5"

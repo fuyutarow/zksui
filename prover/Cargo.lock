@@ -3305,6 +3305,7 @@ dependencies = [
  "fastcrypto-zkp",
  "hex",
  "num-bigint",
+ "num-traits",
  "once_cell",
  "poseidon-ark",
  "rand",

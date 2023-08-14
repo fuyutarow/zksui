@@ -6,35 +6,49 @@ use ark_groth16::Proof;
 use ark_groth16::{Groth16, PreparedVerifyingKey as ArkPreparedVerifyingKey};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::rand::thread_rng;
-use ark_std::UniformRand;
 use fastcrypto::error::FastCryptoError;
-use fastcrypto_zkp::bn254::api::{prepare_pvk_bytes, verify_groth16_in_bytes};
-use fastcrypto_zkp::bn254::api::{Bn254Fr, SCALAR_SIZE};
+use fastcrypto_zkp::bn254::api::SCALAR_SIZE;
 use fastcrypto_zkp::bn254::verifier::{process_vk_special, PreparedVerifyingKey};
-use fastcrypto_zkp::bn254::VerifyingKey;
-use fastcrypto_zkp::dummy_circuits::{DummyCircuit, Fibonacci};
 use num_bigint::BigInt;
+use num_traits::Num;
 use serde_json::json;
+use serde_json::Value;
 use std::collections::HashMap;
+use std::fs;
 use std::fs::File;
 use std::io::Write;
+
+fn load_public_inputs_from_file(file_path: &str) -> HashMap<String, Vec<BigInt>> {
+    let data = fs::read_to_string(file_path).expect("Unable to read file");
+    let inputs: Value = serde_json::from_str(&data).expect("JSON was not well-formatted");
+    let mut map = HashMap::new();
+
+    if let Value::Object(entries) = inputs {
+        for (key, value) in entries {
+            if let Value::String(s) = value {
+                map.insert(
+                    key,
+                    vec![BigInt::from_str_radix(&s, 10).expect("Failed to parse BigInt")],
+                );
+            }
+        }
+    }
+
+    map
+}
 
 pub fn verify_groth16(
     pvk: &PreparedVerifyingKey,
     proof_public_inputs_as_bytes: &[u8],
     proof_points_as_bytes: &[u8],
 ) -> Result<bool, FastCryptoError> {
-    dbg!("#114");
     let proof = Proof::<Curve>::deserialize_compressed(proof_points_as_bytes)
         .map_err(|_| FastCryptoError::InvalidInput)?;
-    dbg!("#115");
     let mut public_inputs = Vec::new();
     for chunk in proof_public_inputs_as_bytes.chunks(SCALAR_SIZE) {
-        dbg!("chunk", chunk.len(), &chunk);
         public_inputs
             .push(Fr::deserialize_compressed(chunk).map_err(|_| FastCryptoError::InvalidInput)?);
     }
-    dbg!("#116");
     let ark_pkv = {
         let mut ark_pvk = ArkPreparedVerifyingKey::default();
         ark_pvk.vk.gamma_abc_g1 = pvk.vk_gamma_abc_g1.clone();
@@ -150,13 +164,8 @@ fn verify_proof_with_r1cs(inputs: CircomInput, wasm_path: &str, r1cs_path: &str)
 }
 
 fn main() {
-    const PUBLIC_SIZE: usize = 128;
-
     verify_proof_with_r1cs(
-        HashMap::from([
-            ("a".to_string(), vec![BigInt::from(3)]),
-            ("b".to_string(), vec![BigInt::from(11)]),
-        ]),
+        load_public_inputs_from_file("../circuit/public_inputs.json"),
         "../circuit/main_js/main.wasm",
         "../circuit/main.r1cs",
     );
