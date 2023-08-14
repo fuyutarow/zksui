@@ -1,8 +1,8 @@
 [tasks."prove"]
-script = '''
-cd prover_rs
-cargo run
-'''
+dependencies = [
+  "build:circuit",
+  "build:proof",
+]
 
 [tasks."verify"]
 script = '''
@@ -10,7 +10,7 @@ cd scripts
 bun src/do_just.ts
 '''
 
-[tasks."_prove"]
+[tasks."prove_with_snarkjs"]
 dependencies = [
   "build:circuit",
   "build:setup",
@@ -22,6 +22,12 @@ dependencies = [
 script = '''
 cd circuit
 circom main.circom --r1cs --wasm
+'''
+
+[tasks."build:proof"]
+script = '''
+cd prover_rs
+cargo run
 '''
 
 [tasks."build:setup"]
