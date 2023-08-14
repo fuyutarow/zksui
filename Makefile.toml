@@ -17,8 +17,8 @@ script = '''
 # セットアップの初期フェーズを開始し、新しいPowers of Tauファイルを生成します。
 cd trusted_setup
 
-# bn128カーブを使用して、12の次数のPowers of Tauセレモニーを開始します。
-snarkjs powersoftau new bn128 12 pot12_0000.ptau -v
+# bn254カーブを使用して、12の次数のPowers of Tauセレモニーを開始します。
+snarkjs powersoftau new bn254 12 pot12_0000.ptau -v
 
 # 既存のPowers of Tauファイルに寄与を追加して新しいファイルを生成します。
 snarkjs powersoftau contribute pot12_0000.ptau pot12_0001.ptau --name="First contribution" -v

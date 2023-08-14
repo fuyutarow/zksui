@@ -6,5 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+ark-bn254 = "0.4.0"
+ark-groth16 = "0.4.0"
+fastcrypto = "0.1.5"
+fastcrypto-zkp = "0.1.1"
+hex = "0.4.3"
 serde = { version = "1.0.183", features = ["derive"] }
 serde_json = "1.0.104"

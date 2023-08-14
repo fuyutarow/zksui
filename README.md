@@ -1,3 +1,11 @@
+Requirements
+
+- snarkjs
+
+```
+npm i -g snarkjs
+```
+
 ```sh
 makers prove
 ```
