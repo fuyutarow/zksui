@@ -130,7 +130,8 @@ fn verify_proof_with_r1cs(inputs: CircomInput, wasm_path: &str, r1cs_path: &str)
     println!("proof_points_bytes: {}", hex::encode(&proof_points_bytes));
 
     let pvk = process_vk_special(&params.vk.into());
-    let result = verify_groth16(&pvk, &public_inputs_bytes, &proof_points_bytes);
+    let result: Result<bool, FastCryptoError> =
+        verify_groth16(&pvk, &public_inputs_bytes, &proof_points_bytes);
     dbg!("result", &result);
 
     println!("{:?}", &vk_bytes);

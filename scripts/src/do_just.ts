@@ -27,7 +27,7 @@ const getKeypair = () => {
 };
 
 const setupTransactionBlock = (vk_bytes, public_inputs_bytes, proof_points_bytes) => {
-  const pkgID = "0x550b6cc5e577fdab7b3a65e6e6beaef5594488ff13bb3c67b929d86059b0a15f"
+  const pkgID = "0xd0cb8699235e0785e6aba7b19e1065efbd359eea0ed702dc68228ecbda3de3e0"
   let txb = new TransactionBlock();
   txb.moveCall({
     target: `${pkgID}::verifier::verify_proof`,
@@ -64,6 +64,12 @@ const main = async () => {
   });
 
   console.log(dryRunResult);
+
+  const result = await signer.signAndExecuteTransactionBlock({
+    transactionBlock: txb,
+  });
+  console.log(result);
+
   console.log("hello");
 };
 
