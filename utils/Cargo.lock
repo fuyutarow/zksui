@@ -3309,6 +3309,7 @@ dependencies = [
  "poseidon-ark",
  "rand",
  "regex",
+ "rustc-hex",
  "schemars",
  "serde",
  "serde_json",

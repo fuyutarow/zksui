@@ -9,42 +9,49 @@ use fastcrypto_zkp::bn254::api::{prepare_pvk_bytes, verify_groth16_in_bytes};
 use fastcrypto_zkp::bn254::verifier::process_vk_special;
 use fastcrypto_zkp::bn254::VerifyingKey;
 use fastcrypto_zkp::dummy_circuits::{DummyCircuit, Fibonacci};
-use std::ops::Mul;
+use num_bigint::BigInt;
+use serde_json::json;
+use std::collections::HashMap;
+use std::fs::File;
+use std::io::Write;
 
-fn main() {
-    const PUBLIC_SIZE: usize = 128;
+type CircomInput = HashMap<String, Vec<num_bigint::BigInt>>;
 
-    let rng = &mut thread_rng();
-    let circuit = {
-        let cfg =
-            CircomConfig::<Curve>::new("../circuit/main_js/main.wasm", "../circuit/main.r1cs")
-                .unwrap();
+fn verify_proof_with_r1cs(inputs: CircomInput, wasm_path: &str, r1cs_path: &str) {
+    // Load the WASM and R1CS for witness and proof generation
+    let cfg = CircomConfig::<Curve>::new(wasm_path, r1cs_path).unwrap();
 
-        let mut builder = CircomBuilder::new(cfg);
-        builder.push_input("a", 3);
-        builder.push_input("b", 11);
-        builder.setup();
-        builder.build().expect("build circuit")
-    };
+    // Insert our public inputs as key value pairs
+    let mut builder = CircomBuilder::new(cfg);
+    for (k, v) in inputs {
+        for e in v {
+            builder.push_input(&k, e);
+        }
+    }
+    // Create an empty instance for setting it up
+    let circuit = builder.setup();
 
-    let (pk, vk) = Groth16::<Curve>::circuit_specific_setup(circuit.clone(), rng).unwrap();
+    // Run a trusted setup
+    let mut rng = thread_rng();
+    let params =
+        Groth16::<Curve>::generate_random_parameters_with_reduction(circuit, &mut rng).unwrap();
+
+    // Get the populated instance of the circuit with the witness
+    let circuit = builder.build().unwrap();
+
     let inputs = circuit.get_public_inputs().unwrap();
-    let proof = Groth16::<Curve>::prove(&pk, circuit, rng).unwrap();
+    let proof = Groth16::<Curve>::prove(&params, circuit, &mut rng).unwrap();
+    let pvk = Groth16::<Curve>::process_vk(&params.vk).unwrap();
+
+    let verified = Groth16::<Curve>::verify_proof(&pvk, &proof, &inputs).unwrap();
+    dbg!(&verified);
+    assert!(verified);
 
     let vk_bytes = {
         let mut vk_bytes = vec![];
-        vk.serialize_compressed(&mut vk_bytes).unwrap();
+        params.vk.serialize_compressed(&mut vk_bytes).unwrap();
         vk_bytes
-        // prepare_pvk_bytes(vk_bytes.as_slice()).unwrap()
     };
-
-    // // Success case.
-    // assert!(prepare_pvk_bytes(vk_bytes.as_slice()).is_ok());
-
-    // // Length of verifying key is incorrect.
-    // let mut modified_bytes = vk_bytes.clone();
-    // modified_bytes.pop();
-    // assert!(prepare_pvk_bytes(&modified_bytes).is_err());
 
     let public_inputs_bytes = {
         let mut public_inputs_bytes = Vec::new();
@@ -82,4 +89,27 @@ fn main() {
     println!("{:?}", vk_bytes);
     println!("{:?}", public_inputs_bytes);
     println!("{:?}", proof_points_bytes);
+
+    let output_data = json!({
+        "vk_bytes": &vk_bytes,
+        "public_inputs_bytes": &public_inputs_bytes,
+        "proof_points_bytes": &proof_points_bytes,
+    });
+
+    let mut file = File::create("output_data.json").expect("Unable to create file");
+    file.write_all(output_data.to_string().as_bytes())
+        .expect("Unable to write data");
+}
+
+fn main() {
+    const PUBLIC_SIZE: usize = 128;
+
+    verify_proof_with_r1cs(
+        HashMap::from([
+            ("a".to_string(), vec![BigInt::from(3)]),
+            ("b".to_string(), vec![BigInt::from(11)]),
+        ]),
+        "../circuit/main_js/main.wasm",
+        "../circuit/main.r1cs",
+    );
 }

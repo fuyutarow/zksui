@@ -51,3 +51,9 @@ script = '''
 cd utils
 cargo run
 '''
+
+[tasks."deploy:sui"]
+script = '''
+cd contract
+sui client publish --gas-budget 123456789 --skip-dependency-verification
+'''
